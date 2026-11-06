@@ -8,6 +8,7 @@ import os
 import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
@@ -71,6 +72,17 @@ class Identificacao(BaseModel):
     cliente_id: str = Field(min_length=1, max_length=64)
     nome: str = Field(min_length=1, max_length=40)
     lamport: int = Field(default=0, ge=0)
+    papel: Literal["adotante", "doador"] | None = None
+
+    def exigir(self, papel):
+        """O papel é escolhido na entrada. Cada ação só vale para um dos papéis."""
+        if self.papel != papel:
+            mensagem = {
+                "adotante": "Só quem entrou como adotante pode fazer isso.",
+                "doador": "Só quem entrou como doador pode fazer isso.",
+            }[papel]
+            raise HTTPException(403, mensagem)
+        return self
 
     def autor(self):
         return regras.Autor(self.cliente_id, self.nome.strip() or "Anônimo", self.lamport)
@@ -131,6 +143,7 @@ async def endereco_na_rede():
 
 @app.post("/api/animais")
 async def cadastrar_animal(corpo: NovoAnimal):
+    corpo.exigir("doador")
     dados = {
         "nome": corpo.nome_animal.strip(), "especie": corpo.especie, "idade": corpo.idade.strip(),
         "porte": corpo.porte, "sexo": corpo.sexo, "descricao": corpo.descricao.strip(),
@@ -142,27 +155,32 @@ async def cadastrar_animal(corpo: NovoAnimal):
 
 @app.post("/api/animais/{animal_id}/reservar")
 async def reservar(animal_id: int, corpo: Identificacao):
+    corpo.exigir("adotante")
     return await executar(lambda conn: regras.querer_adotar(conn, animal_id, corpo.autor()))
 
 
 @app.post("/api/animais/{animal_id}/desistir")
 async def desistir(animal_id: int, corpo: Identificacao):
+    corpo.exigir("adotante")
     return await executar(lambda conn: regras.desistir(conn, animal_id, corpo.autor()))
 
 
 @app.post("/api/animais/{animal_id}/pedido")
 async def enviar_pedido(animal_id: int, corpo: NovoPedido):
+    corpo.exigir("adotante")
     return await executar(lambda conn: regras.enviar_pedido(
         conn, animal_id, corpo.autor(), corpo.telefone.strip(), corpo.mensagem.strip()))
 
 
 @app.post("/api/pedidos/{pedido_id}/aprovar")
 async def aprovar(pedido_id: int, corpo: Decisao):
+    corpo.exigir("doador")
     return await executar(lambda conn: regras.decidir(conn, pedido_id, True, corpo.versao, corpo.autor()))
 
 
 @app.post("/api/pedidos/{pedido_id}/recusar")
 async def recusar(pedido_id: int, corpo: Decisao):
+    corpo.exigir("doador")
     return await executar(lambda conn: regras.decidir(conn, pedido_id, False, corpo.versao, corpo.autor()))
 
 

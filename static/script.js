@@ -27,6 +27,9 @@ if (!clienteId) {
     memoria.gravar("petamigo.cliente", clienteId);
 }
 let meuNome = memoria.ler("petamigo.nome") || "";
+// Papel escolhido na entrada: "adotante" ou "doador".
+let meuPapel = memoria.ler("petamigo.papel") || "";
+const souDoador = () => meuPapel === "doador";
 
 // ---------------------------------------------------------------------------
 // Réplica local
@@ -130,7 +133,7 @@ async function chamar(caminho, corpo = {}) {
         resposta = await fetch(caminho, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cliente_id: clienteId, nome: meuNome, lamport, ...corpo }),
+            body: JSON.stringify({ cliente_id: clienteId, nome: meuNome, papel: meuPapel, lamport, ...corpo }),
         });
     } catch {
         throw new Error("Sem conexão com o servidor. Tente de novo.");
@@ -299,6 +302,7 @@ function rotaAtual() {
 
 function mostrarTela() {
     const { tela } = rotaAtual();
+    if (tela === "cadastrar" && !souDoador()) { location.hash = "inicio"; return; }
     document.querySelectorAll(".tela").forEach((s) => { s.hidden = s.id !== "tela-" + tela; });
     document.querySelectorAll(".navegacao [data-tela]").forEach((link) => {
         const ativo = link.dataset.tela === tela || (tela === "animal" && link.dataset.tela === "inicio");
@@ -430,6 +434,17 @@ function renderizarDetalhe(id) {
             quadro = `<div class="situacao-detalhe neutra">${nome} já foi adotado${animal.adotado_por ? ` por ${esc(primeiroNome(animal.adotado_por))}` : ""}.</div>`;
             acoes = `<button class="botao botao-secundario botao-grande botao-largo" disabled>Já adotado</button>`;
         }
+    } else if (souDoador()) {
+        const quem = esc(primeiroNome(animal.reservado_nome) || "");
+        const espera = s.fila.length ? ` ${s.fila.length} na fila.` : "";
+        quadro = animal.status === "DISPONIVEL"
+            ? `<div class="situacao-detalhe neutra">${nome} está esperando por um adotante.</div>`
+            : animal.status === "RESERVADO"
+                ? `<div class="situacao-detalhe">${quem} está com a vez agora.${espera}</div>`
+                : `<div class="situacao-detalhe">O pedido de ${quem} está em análise.${espera}</div>`;
+        if (animal.status === "EM_ANALISE") {
+            acoes = `<a class="botao botao-primario botao-grande botao-largo" href="#pedidos">${icone("check")}Ver pedido</a>`;
+        }
     } else if (s.minhaVez) {
         quadro = `<div class="situacao-detalhe minha">A vez é sua. Envie o pedido em
             <b data-prazo-texto="${animal.reservado_ate}">${segundosRestantes(animal)}</b> segundos.${barraTempo(animal)}</div>`;
@@ -511,7 +526,7 @@ function cardPedido(p) {
                 ${p.mensagem ? `<div><dt>Mensagem</dt><dd>${esc(p.mensagem)}</dd></div>` : ""}
                 ${p.decidido_por ? `<div><dt>Decidido por</dt><dd>${esc(p.decidido_por)}</dd></div>` : ""}
             </dl>
-            ${p.status === "PENDENTE" ? `
+            ${p.status === "PENDENTE" && souDoador() ? `
             <div class="acoes-pedido">
                 <button class="botao botao-secundario" data-acao="recusar" data-id="${p.id}" data-versao="${p.versao}">Recusar</button>
                 <button class="botao botao-primario" data-acao="aprovar" data-id="${p.id}" data-versao="${p.versao}">${icone("check")}Aprovar</button>
@@ -521,7 +536,15 @@ function cardPedido(p) {
 }
 
 function renderizarPedidos() {
-    const todos = [...replica.pedidos.values()].sort((a, b) => b.id - a.id);
+    // Doador vê todos os pedidos e decide; adotante só acompanha os próprios.
+    const todos = [...replica.pedidos.values()]
+        .filter((p) => souDoador() || p.cliente_id === clienteId)
+        .sort((a, b) => b.id - a.id);
+    $("subtituloPedidos").textContent = souDoador() ? "Área do doador" : "Área do adotante";
+    $("tituloPedidos").textContent = souDoador() ? "Pedidos de adoção" : "Meus pedidos";
+    $("apoioPedidos").textContent = souDoador()
+        ? "Os pedidos chegam aqui na hora. Se dois doadores tocarem em Aprovar ao mesmo tempo, só a primeira decisão vale."
+        : "Acompanhe aqui os pedidos que você enviou. Você é avisado assim que um doador decidir.";
     const pendentes = todos.filter((p) => p.status === "PENDENTE");
     const decididos = todos.filter((p) => p.status !== "PENDENTE");
 
@@ -530,11 +553,13 @@ function renderizarPedidos() {
     selo.textContent = pendentes.length;
 
     if (!todos.length) {
-        $("listaPedidos").innerHTML = `<p class="vazio">Nenhum pedido por enquanto.<br>Quando alguém pedir para adotar, o pedido aparece aqui.</p>`;
+        $("listaPedidos").innerHTML = souDoador()
+            ? `<p class="vazio">Nenhum pedido por enquanto.<br>Quando alguém pedir para adotar, o pedido aparece aqui.</p>`
+            : `<p class="vazio">Você ainda não enviou nenhum pedido.<br>Escolha um pet na tela inicial.</p>`;
         return;
     }
     $("listaPedidos").innerHTML = `
-        ${pendentes.length ? `<section class="grupo-pedidos"><h2>Aguardando decisão (${pendentes.length})</h2>
+        ${pendentes.length ? `<section class="grupo-pedidos"><h2>${souDoador() ? "Aguardando decisão" : "Em análise"} (${pendentes.length})</h2>
             <div class="lista-pedidos">${pendentes.map(cardPedido).join("")}</div></section>` : ""}
         ${decididos.length ? `<section class="grupo-pedidos"><h2>Histórico</h2>
             <div class="lista-pedidos">${decididos.map(cardPedido).join("")}</div></section>` : ""}`;
@@ -600,6 +625,7 @@ function adicionarAoRegistro(evento, novo) {
 
 function renderizarBarraVez() {
     const barra = $("barraVez");
+    if (souDoador()) { barra.hidden = true; return; }
     const animais = [...replica.animais.values()];
     const comVez = animais.find((a) => situacao(a).minhaVez);
     const naFila = animais.find((a) => situacao(a).posicao);
@@ -681,7 +707,7 @@ function notificar(evento, eraMinhaFila) {
     }
 
     if (meu) return;
-    if (evento.evento === "pedido_enviado") aviso(`${evento.autor} quer adotar ${nome}. Veja em Pedidos.`, "destaque");
+    if (evento.evento === "pedido_enviado" && souDoador()) aviso(`${evento.autor} quer adotar ${nome}. Veja em Pedidos.`, "destaque");
     if (evento.evento === "animal_cadastrado") aviso(`Novo animal para adoção: ${nome}.`);
 }
 
@@ -887,14 +913,23 @@ async function montarQrCode() {
 // Entrada (nome)
 // ---------------------------------------------------------------------------
 
-// O botão "Começar" só fica ativo quando há um nome digitado.
+// O botão "Começar" só fica ativo com nome digitado e papel escolhido.
+const papelEscolhido = () => $("formNome").querySelector('input[name="papel"]:checked')?.value || "";
+
 function atualizarBotaoEntrar() {
-    document.querySelector(".botao-entrar").disabled = !$("campoNome").value.trim();
+    document.querySelector(".botao-entrar").disabled = !$("campoNome").value.trim() || !papelEscolhido();
 }
-$("campoNome").addEventListener("input", atualizarBotaoEntrar);
+$("formNome").addEventListener("input", atualizarBotaoEntrar);
+
+function aplicarPapel() {
+    document.body.classList.toggle("papel-doador", souDoador());
+    document.body.classList.toggle("papel-adotante", !souDoador());
+    document.querySelector('.navegacao [data-tela="cadastrar"]').hidden = !souDoador();
+}
 
 function abrirEntrada(podeVoltar) {
     $("campoNome").value = meuNome;
+    $("formNome").querySelectorAll('input[name="papel"]').forEach((r) => { r.checked = r.value === meuPapel; });
     atualizarBotaoEntrar();
     $("cancelarNome").hidden = !podeVoltar;
     $("entrada").hidden = false;
@@ -902,17 +937,24 @@ function abrirEntrada(podeVoltar) {
 
 function atualizarPerfil() {
     $("nomePerfil").textContent = meuNome ? primeiroNome(meuNome) : "Perfil";
+    $("botaoPerfil").title = meuPapel ? `Entrou como ${meuPapel}. Toque para trocar.` : "";
 }
 
 $("formNome").addEventListener("submit", (ev) => {
     ev.preventDefault();
     const nome = $("campoNome").value.trim().slice(0, 40);
+    const papel = papelEscolhido();
     if (!nome) { $("campoNome").focus(); return; }
+    if (!papel) return;
     const mudou = meuNome && meuNome !== nome;
     meuNome = nome;
+    meuPapel = papel;
     memoria.gravar("petamigo.nome", meuNome);
+    memoria.gravar("petamigo.papel", meuPapel);
     $("entrada").hidden = true;
+    aplicarPapel();
     atualizarPerfil();
+    if (rotaAtual().tela === "cadastrar" && !souDoador()) location.hash = "inicio";
     pedirPermissaoDeNotificacao();
     if (!socket) conectar();
     else if (mudou) socket.close(); // reconecta com o nome novo
@@ -927,7 +969,9 @@ $("botaoPerfil").addEventListener("click", () => abrirEntrada(true));
 // ---------------------------------------------------------------------------
 
 montarQrCode();
+aplicarPapel();
 atualizarPerfil();
 mostrarTela();
 if (meuNome) conectar();
-else abrirEntrada(false);
+// Quem entrou antes de existirem papéis precisa escolher um.
+if (!meuNome || !meuPapel) abrirEntrada(false);

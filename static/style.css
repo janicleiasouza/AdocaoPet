@@ -883,3 +883,26 @@ code {
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Escolha de papel na entrada ------------------------------------------------ */
+.escolha-papel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.escolha-papel legend { font-weight: 700; font-size: 14px; color: var(--texto-suave); margin-bottom: 8px; padding: 0; }
+.escolha-papel label { position: relative; display: block; }
+.escolha-papel input { position: absolute; opacity: 0; pointer-events: none; }
+.escolha-papel span {
+    display: grid; gap: 2px; height: 100%;
+    padding: 12px 14px;
+    border-radius: 18px;
+    border: 1.5px solid var(--linha);
+    background: var(--fundo);
+    cursor: pointer;
+    transition: all .15s;
+}
+.escolha-papel b { font-size: 15px; color: var(--texto); }
+.escolha-papel small { font-size: 12.5px; color: var(--texto-suave); font-weight: 500; }
+.escolha-papel input:checked + span { border-color: var(--laranja); background: rgba(247, 136, 47, .1); }
+.escolha-papel input:checked + span b { color: var(--laranja-escuro); }
+.escolha-papel input:focus-visible + span { outline: 2px solid var(--laranja); outline-offset: 2px; }
+
+/* Adotante não vê o botão de cadastrar: a barra fica com 4 colunas. */
+body.papel-adotante .navegacao { grid-template-columns: repeat(4, 1fr); }
