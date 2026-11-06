@@ -872,8 +872,7 @@ $("botaoCorrida").addEventListener("click", async () => {
     botao.disabled = true;
     saida.textContent = "Enviando 10 pedidos ao mesmo tempo...";
     try {
-        const resposta = await fetch(`/api/demo/corrida/${id}?quantidade=10`, { method: "POST" });
-        const r = await resposta.json();
+        const r = await chamar(`/api/demo/corrida/${id}?quantidade=10`);
         if (r.negados === r.tentativas) {
             saida.textContent = `${r.tentativas} pedidos, todos recusados: ${nome} já foi adotado.`;
         } else {
@@ -882,8 +881,8 @@ $("botaoCorrida").addEventListener("click", async () => {
                 : `Ninguém pegou a vez (${nome} já estava com outra pessoa)`;
             saida.textContent = `${r.tentativas} pedidos simultâneos. ${vencedor} e ${r.fila.length} entraram na fila em ordem de chegada.`;
         }
-    } catch {
-        saida.textContent = "Não foi possível simular agora.";
+    } catch (erro) {
+        saida.textContent = erro.message || "Não foi possível simular agora.";
     } finally {
         botao.disabled = false;
     }

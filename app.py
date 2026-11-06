@@ -185,8 +185,10 @@ async def recusar(pedido_id: int, corpo: Decisao):
 
 
 @app.post("/api/demo/corrida/{animal_id}")
-async def simular_corrida(animal_id: int, quantidade: int = 10):
-    """Dispara N pedidos de vez ao mesmo tempo. Um fica com a vez e o resto vai para a fila."""
+async def simular_corrida(animal_id: int, corpo: Identificacao, quantidade: int = 10):
+    """Dispara N pedidos de vez ao mesmo tempo. Um fica com a vez e o resto vai para a fila.
+    Só doador: os robôs seguram o animal até os prazos vencerem."""
+    corpo.exigir("doador")
     quantidade = max(2, min(quantidade, 30))
 
     async def robo(i):
@@ -207,6 +209,7 @@ async def simular_corrida(animal_id: int, quantidade: int = 10):
 
 @app.post("/api/demo/reiniciar")
 async def reiniciar(corpo: Identificacao):
+    corpo.exigir("doador")  # apaga pedidos e filas de todo mundo
     return await executar(lambda conn: regras.reiniciar(conn, corpo.autor()))
 
 

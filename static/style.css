@@ -906,3 +906,5 @@ code {
 
 /* Adotante não vê o botão de cadastrar: a barra fica com 4 colunas. */
 body.papel-adotante .navegacao { grid-template-columns: repeat(4, 1fr); }
+/* Ações que afetam todo mundo (teste de concorrência, reiniciar) ficam só com o doador. */
+body:not(.papel-doador) .so-doador { display: none !important; }
