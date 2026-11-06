@@ -670,12 +670,13 @@ function notificar(evento, eraMinhaFila) {
     if (evento.evento === "vez_expirada" && d.de_cliente === clienteId) {
         alertar(`Seu prazo para ${nome} acabou.`, "erro");
     }
-    if (evento.evento === "pedido_aprovado" && d.para === clienteId) {
+    // Quem decidiu já recebe o aviso da própria ação; não avisa de novo como adotante.
+    if (evento.evento === "pedido_aprovado" && d.para === clienteId && !meu) {
         alertar(`Seu pedido foi aprovado! ${nome} vai para casa com você.`, "ok");
     } else if (evento.evento === "pedido_aprovado" && eraMinhaFila) {
         alertar(`${nome} foi adotado por outra pessoa.`, "info");
     }
-    if (evento.evento === "pedido_recusado" && d.para === clienteId) {
+    if (evento.evento === "pedido_recusado" && d.para === clienteId && !meu) {
         alertar(`Seu pedido para ${nome} não foi aprovado desta vez.`, "erro");
     }
 
