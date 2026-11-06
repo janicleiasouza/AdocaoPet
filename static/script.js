@@ -744,8 +744,8 @@ function verificarDialogoPedido() {
     if (!pedidoAberto) return;
     const animal = replica.animais.get(pedidoAberto);
     if (!animal || !situacao(animal).minhaVez) {
+        // Só fecha: o aviso de prazo vencido vem do evento vez_expirada (ver notificar).
         fecharPedido();
-        if (animal && animal.status !== "EM_ANALISE") aviso("O tempo para enviar o pedido acabou.", "erro");
     }
 }
 
