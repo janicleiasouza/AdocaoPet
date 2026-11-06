@@ -810,10 +810,13 @@ code {
 .botao-entrar:disabled .botao-entrar-icone { background: #ddd4cb; color: #fff; }
 
 @media (min-width: 500px) {
-    .entrada { justify-content: center; padding: 24px 0; }
-    .entrada-topo { padding-top: 12px; }
+    /* Margens automáticas centralizam quando cabe e deixam rolar quando não cabe
+       (justify-content: center cortava o topo, fora do alcance da rolagem). */
+    .entrada { padding: 24px 0; }
+    .entrada-topo { padding-top: 12px; margin-top: auto; }
+    .entrada-cartao { margin-bottom: auto; }
     .entrada-pata { top: 20px; }
-    .entrada-foto { flex: none; height: clamp(200px, 30vh, 280px); }
+    .entrada-foto { flex: none; height: clamp(160px, 26vh, 280px); }
     .entrada-cartao {
         border-radius: 32px;
         box-shadow: var(--sombra-forte);
