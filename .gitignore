@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+petamigo.db
+petamigo.db-*
